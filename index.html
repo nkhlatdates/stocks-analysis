@@ -1,0 +1,226 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0}[hidden]{display:none!important}</style>
+<title>فحص الضغط على المكشوف</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: verdict first, four tiles, one bar chart against a threshold, then an operable table with a detail drawer. */
+:root{
+  --bg:#f3f5f6; --surface:#ffffff; --ink:#10212b; --ink2:#4a5b66; --muted:#7a8a94; --line:#dbe2e6;
+  --accent:#14506b; --series:#2a78d6; --track:#e6ecef;
+  --good:#1a7f4e; --warn:#a86a00; --crit:#b3312f; --crit-bg:#fbe9e8; --warn-bg:#fdf3dc; --good-bg:#e4f4ec;
+  --font:"IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif; --mono:"IBM Plex Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f171c; --surface:#172229; --ink:#eef3f5; --ink2:#b7c4cb; --muted:#8597a1; --line:#2a3942;
+  --accent:#7cc4e3; --series:#3987e5; --track:#22313a;
+  --good:#4fc48a; --warn:#e0a83a; --crit:#f07c79; --crit-bg:#3a1f1f; --warn-bg:#3a2f14; --good-bg:#16352a; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0f171c; --surface:#172229; --ink:#eef3f5; --ink2:#b7c4cb; --muted:#8597a1; --line:#2a3942;
+  --accent:#7cc4e3; --series:#3987e5; --track:#22313a;
+  --good:#4fc48a; --warn:#e0a83a; --crit:#f07c79; --crit-bg:#3a1f1f; --warn-bg:#3a2f14; --good-bg:#16352a; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.7}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:20px;padding-block:28px 56px;display:flex;flex-direction:column;gap:22px}
+.num,.tk{font-family:var(--mono);font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+header h1{font-size:28px;font-weight:700;margin:0;line-height:1.3;text-wrap:balance}
+header p{margin:4px 0 0;color:var(--ink2);font-size:14px}
+.verdict{background:var(--crit-bg);border-inline-start:5px solid var(--crit);padding:16px 18px;border-radius:6px}
+.verdict b{display:block;font-size:18px;font-weight:700}
+.verdict span{color:var(--ink2);font-size:14px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.tile .l{font-size:13px;color:var(--ink2)}
+.tile .v{font-size:30px;font-weight:700;line-height:1.25}
+.tile .s{font-size:12.5px;color:var(--muted)}
+section>h2{font-size:18px;font-weight:700;margin:0 0 4px}
+section>.sub{color:var(--ink2);font-size:13.5px;margin:0 0 12px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px}
+.bars{display:flex;flex-direction:column;gap:9px;position:relative}
+.bar{display:grid;grid-template-columns:54px 1fr 56px;align-items:center;gap:10px;cursor:pointer;background:none;border:0;padding:2px 0;font:inherit;color:inherit;text-align:start;width:100%}
+.bar:focus-visible,.th:focus-visible,.chip:focus-visible,tr:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bar .tk{font-weight:500;font-size:13.5px}
+.track{height:16px;background:var(--track);border-radius:4px;position:relative;direction:ltr}
+.fill{height:100%;background:var(--series);border-radius:0 4px 4px 0;min-width:2px}
+.bar:hover .fill{filter:brightness(1.15)}
+.thr{position:absolute;top:-4px;bottom:-4px;width:0;border-inline-start:2px dashed var(--crit)}
+.bar .val{font-size:13px;color:var(--ink2);text-align:end}
+.axis{display:grid;grid-template-columns:54px 1fr 56px;gap:10px;margin-top:6px;font-size:11.5px;color:var(--muted)}
+.axis .sc{display:flex;justify-content:space-between;direction:ltr}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--ink2);margin-top:10px}
+.legend i{display:inline-block;width:14px;height:10px;border-radius:2px;background:var(--series);margin-inline-end:6px;vertical-align:middle}
+.legend i.d{background:none;border-top:2px dashed var(--crit);height:0;width:18px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.chip{font:inherit;font-size:13px;padding:5px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink2);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:600}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:13.5px}
+th{font-weight:600;color:var(--ink2);font-size:12.5px;border-bottom:2px solid var(--line);padding:0;white-space:nowrap}
+.th{font:inherit;font-weight:600;color:inherit;background:none;border:0;padding:9px 10px;cursor:pointer;width:100%;text-align:start}
+.th[aria-sort="ascending"]::after{content:" ▲";font-size:9px}.th[aria-sort="descending"]::after{content:" ▼";font-size:9px}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr{cursor:pointer}
+tbody tr:hover,tbody tr.on{background:var(--track)}
+td .tk{font-weight:500;font-size:14px;color:var(--accent)}
+td small{display:block;color:var(--muted);font-size:11.5px;font-family:var(--font)}
+.pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.pill.c{background:var(--crit-bg);color:var(--crit)}.pill.w{background:var(--warn-bg);color:var(--warn)}.pill.g{background:var(--good-bg);color:var(--good)}
+.meter{display:inline-flex;align-items:center;gap:8px}
+.meter span{display:inline-block;width:64px;height:6px;border-radius:3px;background:var(--track);direction:ltr;overflow:hidden}
+.meter span b{display:block;height:100%;background:var(--accent)}
+.detail{margin-top:14px;border-top:2px solid var(--accent);padding-top:14px}
+.detail h3{margin:0 0 10px;font-size:17px}
+.dl{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 26px}
+.dl div{min-width:0}
+.dl dt{font-size:12px;color:var(--muted);font-weight:600}
+.dl dd{margin:0;font-size:14px}
+.gaps{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 22px;margin:0;padding:0;list-style:none}
+.gaps li{min-width:0;font-size:13.5px}.gaps b{display:block}.gaps span{color:var(--ink2)}
+.src{columns:2;column-gap:28px;margin:0;padding-inline-start:18px;font-size:13px}
+.src li{break-inside:avoid;margin-bottom:4px}
+a{color:var(--accent)}
+footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
+#tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12.5px;padding:6px 10px;border-radius:6px;z-index:5;max-width:240px}
+@media (max-width:760px){.tiles{grid-template-columns:repeat(2,1fr)}.dl,.gaps{grid-template-columns:1fr}.src{columns:1}header h1{font-size:23px}.tile .v{font-size:25px}}
+@media (prefers-reduced-motion:no-preference){.fill{transition:width .5s ease}}
+</style>
+</head><body>
+
+<div class="wrap" dir="rtl" lang="ar">
+  <header>
+    <h1>فحص الضغط على المكشوف — ثمانية أسهم صغيرة</h1>
+    <p>آخر جلسة مكتملة: الجمعة 2 أكتوبر 2026 · أُعدّ الاثنين 5 أكتوبر 2026 · الأسعار من Interactive Brokers</p>
+  </header>
+
+  <div class="verdict">
+    <b>لا يوجد سهم من الثمانية مهيأ لضغط على البائعين على المكشوف</b>
+    <span>نسبة البيع على المكشوف أقل من 5% من الأسهم الحرة في كل الأسهم، فلا توجد مراكز مكشوفة كافية لتُحاصَر. بيانات الاقتراض لم تتوفر من مصادر علنية.</span>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="l">الأسهم المفحوصة</div><div class="v num">8</div><div class="s">شركات صغيرة جداً في ناسداك</div></div>
+    <div class="tile"><div class="l">أعلى نسبة مكشوف</div><div class="v num">4.3%</div><div class="s">سهم <span class="tk">VRAX</span></div></div>
+    <div class="tile"><div class="l">أسهم تتجاوز حد 10%</div><div class="v num">0</div><div class="s">الحد الذي يبدأ عنده الاهتمام</div></div>
+    <div class="tile"><div class="l">أسهم بتمويل مفتوح الآن</div><div class="v num">4</div><div class="s">أسهم جديدة قد تدخل السوق</div></div>
+  </div>
+
+  <section>
+    <h2>نسبة البيع على المكشوف من الأسهم الحرة</h2>
+    <p class="sub">كل الأسهم بعيدة عن حد 10%. اضغط على أي سهم لعرض تفاصيله.</p>
+    <div class="panel">
+      <div class="bars" id="bars"></div>
+      <div class="axis"><span></span><div class="sc num"><span>0%</span><span>3%</span><span>6%</span><span>9%</span><span>12%</span></div><span></span></div>
+      <div class="legend"><span><i></i>نسبة المكشوف الرسمية</span><span><i class="d"></i>حد 10% (اجتهاد تحليلي)</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>جدول المقارنة</h2>
+    <p class="sub">اضغط على عنوان العمود للترتيب، وعلى الصف لعرض التفاصيل.</p>
+    <div class="panel">
+      <div class="chips" id="chips">
+        <button class="chip" id="f-all" data-f="all" aria-pressed="true">الكل</button>
+        <button class="chip" id="f-dil" data-f="dil" aria-pressed="false">تمويل مفتوح</button>
+        <button class="chip" id="f-rs" data-f="rs" aria-pressed="false">تجميع عكسي في 2026</button>
+        <button class="chip" id="f-cash" data-f="cash" aria-pressed="false">يتداول تحت قيمة النقد</button>
+      </div>
+      <div class="tw"><table>
+        <thead><tr id="head"></tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>
+      <div class="detail" id="detail" hidden></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>بيانات لم يتم التحقق منها</h2>
+    <p class="sub">هذه البنود ضرورية للحكم النهائي، وغير متاحة علناً.</p>
+    <div class="panel"><ul class="gaps">
+      <li><b>الأسهم المتاحة للاقتراض وتكلفته</b><span>الجداول العلنية مقفلة أو قديمة. تُستكمل من منصة Interactive Brokers.</span></li>
+      <li><b>نسبة الاستخدام وتقدير المكشوف الحالي</b><span>متاحة فقط في خدمات مدفوعة مثل ORTEX و S3.</span></li>
+      <li><b>حجم البيع على المكشوف اليومي</b><span>آخر ما وُجد قديم: أغسطس لسهم VRAX وفبراير لسهم BAOS.</span></li>
+      <li><b>أسعار أربعة أسهم</b><span>SBFM و ACXP و BAOS و GXAI: آخر سعر بدون تاريخ مؤكد.</span></li>
+      <li><b>تاريخ تسوية المكشوف</b><span>مؤكد فقط لسهمي BAOS و LCFY (15 سبتمبر 2026). التقرير التالي ينشر نحو 9 أكتوبر.</span></li>
+      <li><b>الفحص الشرعي</b><span>لم يُجرَ في Zoya لأي من الثمانية.</span></li>
+    </ul></div>
+  </section>
+
+  <section>
+    <h2>المصادر</h2>
+    <div class="panel"><ul class="src" id="src"></ul></div>
+  </section>
+
+  <footer>التقييم من 10 اجتهاد تحليلي وليس رقماً من مصدر. الأسهم الحرة تقديرات من StockAnalysis. هذه الصفحة للمعلومات فقط وليست نصيحة استثمارية.</footer>
+</div>
+<div id="tip" hidden></div>
+
+<script>
+const D=[
+ {t:"VRAX",n:"Virax Biolabs",score:3.0,price:2.20,pd:"2 أكتوبر",so:796988,fl:727944,si:31482,prev:25046,dil:"y",dilT:"نعم",stage:1,rs26:true,cash:true,
+  rs:"1 مقابل 25 في 26 يونيو 2026",move:"هبوط هادئ من 2.63$ إلى 2.20$ خلال شهر. تضاعف ثلاث مرات يوم 9 يوليو.",fin:"تسجيل 1.68 مليون سهم ضمانات، أكثر من ضعف الأسهم الحرة.",list:"لم يُتحقق",bal:"نقد 6.5 مليون$ ودين 0.4 مليون$",risk:"أي صعود يقابله بيع أسهم الضمانات"},
+ {t:"SBFM",n:"Sunshine Biopharma",score:2.5,price:0.80,pd:"24 سبتمبر",so:3880000,fl:3810000,si:86934,prev:73942,dil:"y",dilT:"نعم",stage:0,rs26:true,cash:true,
+  rs:"1 مقابل 10 في 1 يونيو 2026. تجميع ثانٍ حتى 1 مقابل 20 أُقرّ في 15 سبتمبر.",move:"هبوط 95% في سنة، قرب أدنى سعر 0.67$.",fin:"صفقة وحدات 6 مليون$ في مايو مع ضمانات حتى 12 مليون$ إضافية.",list:"التجميعان معاً حتى 200:1، قريب من حد ناسداك 250:1",bal:"نقد 14.0 مليون$ ودين 0.7 مليون$",risk:"تجميع ثانٍ قادم وضمانات مفتوحة"},
+ {t:"BAOS",n:"Baosheng Media",score:2.5,price:0.2346,pd:"غير مؤكد",so:33369815,fl:32870000,si:676904,prev:77229,dil:"u",dilT:"غير معروف",stage:0,rs26:false,cash:false,
+  rs:"تجميع 40 مقابل 1 عُرض للتصويت في 4 سبتمبر. تاريخ السريان غير معروف.",move:"انهيار من 2.81$ إلى 0.23$ في 13 أسبوعاً.",fin:"لم يُتحقق",list:"إشعار سعر أدنى في 10 سبتمبر 2026، والمهلة 9 مارس 2027",bal:"نقد 1.6 مليون$ ودين 0.7 مليون$",risk:"قفزة المكشوف 776% تساوي 2% فقط من الأسهم الحرة"},
+ {t:"TRIB",n:"Trinity Biotech",score:2.5,price:5.69,pd:"2 أكتوبر",so:813132,fl:669072,si:8001,prev:9856,dil:"u",dilT:"غير معروف",stage:0,rs26:true,cash:false,
+  rs:"1 مقابل 30 في 24 يوليو 2026",move:"هبوط 37% في شهر من 9.06$ إلى 5.69$.",fin:"7 مليون$ من Perceptive في أغسطس: دين جديد وفوائد مرسملة.",list:"استعادت الامتثال في 7 أغسطس 2026",bal:"نقد 5.1 مليون$ ودين 138 مليون$",risk:"الدين يساوي نحو 30 ضعف القيمة السوقية"},
+ {t:"ACXP",n:"Acurx Pharmaceuticals",score:2.3,price:1.27,pd:"غير مؤكد",so:5270000,fl:5140000,si:127922,prev:102274,dil:"y",dilT:"نعم",stage:0,rs26:false,cash:true,
+  rs:"1 مقابل 20 في 5 أغسطس 2025",move:"عند أدنى سعر في 52 أسبوعاً.",fin:"خط تمويل بالأسهم مستخدم، و1.65 مليون ضمان بسعر 2.78$ مسجلة للبيع.",list:"لم يُتحقق",bal:"نقد 10.7 مليون$ وبلا دين",risk:"إصدار أسهم مستمر"},
+ {t:"LCFY",n:"Locafy",score:2.0,price:2.35,pd:"2 أكتوبر",so:1800000,fl:1410000,si:2713,prev:677,dil:"y",dilT:"نعم",stage:0,rs26:false,cash:false,
+  rs:"1 مقابل 20 في 8 ديسمبر 2022",move:"مستقر بين 2.2$ و2.6$، ويومان بلا تداول خلال الشهر.",fin:"رف تسجيل 100 مليون$ مع برنامج بيع بالسوق 588 ألف$.",list:"إشعار تأخر إفصاح في يوليو 2026 وتم تصحيحه",bal:"نقد 1.0 مليون$ ودين 0.2 مليون$",risk:"سيولة شبه معدومة، نحو 6 آلاف سهم يومياً"},
+ {t:"GXAI",n:"Gaxos.ai",score:1.8,price:0.5159,pd:"غير مؤكد",so:10744634,fl:10520000,si:69161,prev:154456,dil:"u",dilT:"غير معروف",stage:0,rs26:false,cash:true,
+  rs:"1 مقابل 12 في 8 مارس 2024. طُلب تفويض جديد في أغسطس 2026 ولم تتأكد النتيجة.",move:"عند أدنى سعر في 52 أسبوعاً.",fin:"لم يُتحقق",list:"إشعار سعر أدنى",bal:"نقد 11.5 مليون$ وبلا دين",risk:"الأسهم الحرة 10.5 مليون، ليست قليلة"},
+ {t:"HUDI",n:"Huadi International",score:1.5,price:0.6848,pd:"2 أكتوبر",so:14300000,fl:4220000,si:52616,prev:66135,dil:"u",dilT:"غير معروف",stage:0,rs26:false,cash:false,
+  rs:"لا يوجد",move:"نزول بطيء من 0.77$ إلى 0.68$ بتداول ضعيف.",fin:"لم يُتحقق",list:"إشعار سعر أدنى في يوليو 2026",bal:"نقد 2.7 مليون$ ودين 31.9 مليون$",risk:"الملاك الداخليون 70% ولا يوجد محفز"}
+];
+D.forEach(d=>{d.pct=d.si/d.fl*100;d.chg=(d.si/d.prev-1)*100;d.mc=d.price*d.so});
+const nf=new Intl.NumberFormat("en-US"),$=s=>document.querySelector(s);
+const money=v=>v>=1e6?"$"+(v/1e6).toFixed(2)+"M":"$"+nf.format(Math.round(v));
+const MAX=12;let sortK="score",sortDir=-1,filt="all",sel=null;
+const tip=$("#tip");
+function showTip(e,html){tip.innerHTML=html;tip.hidden=false;const x=Math.min(e.clientX+14,innerWidth-250);tip.style.left=x+"px";tip.style.top=(e.clientY+14)+"px"}
+function bars(){
+  const el=$("#bars");el.innerHTML="";
+  [...D].sort((a,b)=>b.pct-a.pct).forEach(d=>{
+    const b=document.createElement("button");b.className="bar";b.type="button";b.id="bar-"+d.t;
+    b.innerHTML=`<span class="tk">${d.t}</span><span class="track"><span class="fill" style="width:${d.pct/MAX*100}%;display:block"></span><span class="thr" style="left:${10/MAX*100}%"></span></span><span class="val num">${d.pct.toFixed(1)}%</span>`;
+    b.onmousemove=e=>showTip(e,`<b>${d.t}</b> · ${d.pct.toFixed(2)}%<br>${nf.format(d.si)} سهم مكشوف`);
+    b.onmouseleave=()=>tip.hidden=true;b.onclick=()=>pick(d.t,true);el.appendChild(b);
+  });
+}
+const COLS=[["t","السهم"],["score","التقييم"],["price","السعر"],["mc","القيمة السوقية"],["fl","الأسهم الحرة"],["pct","نسبة المكشوف"],["chg","التغير"],["dil","تمويل مفتوح"],["stage","المرحلة"]];
+function head(){
+  $("#head").innerHTML=COLS.map(([k,l])=>`<th><button class="th" type="button" id="th-${k}" data-k="${k}" ${k===sortK?`aria-sort="${sortDir>0?"ascending":"descending"}"`:""}>${l}</button></th>`).join("");
+  document.querySelectorAll(".th").forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(k===sortK)sortDir*=-1;else{sortK=k;sortDir=k==="t"?1:-1}head();rows()});
+}
+function rows(){
+  let r=D.filter(d=>filt==="all"||(filt==="dil"&&d.dil==="y")||(filt==="rs"&&d.rs26)||(filt==="cash"&&d.cash));
+  r.sort((a,b)=>(a[sortK]>b[sortK]?1:a[sortK]<b[sortK]?-1:0)*sortDir);
+  $("#rows").innerHTML=r.map(d=>`<tr tabindex="0" data-t="${d.t}" class="${sel===d.t?"on":""}">
+    <td><span class="tk">${d.t}</span><small>${d.n}</small></td>
+    <td><span class="meter"><span><b style="width:${d.score*10}%"></b></span><span class="num">${d.score.toFixed(1)}</span></span></td>
+    <td><span class="num">$${d.price<1?String(+d.price.toFixed(4)).padEnd(4,"0"):d.price.toFixed(2)}</span><small>${d.pd}</small></td>
+    <td class="num">${money(d.mc)}</td>
+    <td class="num">${nf.format(d.fl)}</td>
+    <td><span class="pill c num">${d.pct.toFixed(1)}%</span></td>
+    <td class="num">${d.chg>0?"+":""}${Math.round(d.chg)}%</td>
+    <td><span class="pill ${d.dil==="y"?"w":"g"}" style="${d.dil==="u"?"background:var(--track);color:var(--ink2)":""}">${d.dilT}</span></td>
+    <td class="num">${d.stage} / 6</td></tr>`).join("")||`<tr><td colspan="9">لا توجد أسهم بهذا الشرط.</td></tr>`;
+  document.querySelectorAll("#rows tr[data-t]").forEach(tr=>{tr.onclick=()=>pick(tr.dataset.t);tr.onkeydown=e=>{if(e.key==="Enter")pick(tr.dataset.t)}});
+}
+function pick(t,scroll){
+  sel=sel===t&&!scroll?null:t;rows();const el=$("#detail");
+  if(!sel){el.hidden=true;return}
+  const d=D.find(x=>x.t===sel);
+  el.innerHTML=`<h3><span class="tk">${d.t}</span> — ${d.n}</h3><dl class="dl">
+   <div><dt>التجميع العكسي</dt><dd>${d.rs}</dd></div><div><dt>حركة السعر</dt><dd>${d.move}</dd></div>
+   <div><dt>التمويل والأسهم الجديدة</dt><dd>${d.fin}</dd></div><div><dt>وضع الإدراج في ناسداك</dt><dd>${d.list}</dd></div>
+   <div><dt>النقد والدين</dt><dd>${d.bal}</dd></div><div><dt>أكبر خطر</dt><dd>${d.risk}</dd></div>
+   <div><dt>المكشوف الرسمي</dt><dd><span class="num">${nf.format(d.si)}</span> سهم (السابق <span class="num">${nf.format(d.prev)}</span>)</dd></div>
+   <div><dt>الأسهم القائمة</dt><dd><span class="num">${nf.format(d.so)}</span></dd></div></dl>`;
+  el.hidden=false;if(scroll)el.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{filt=c.dataset.f;document.querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed",x===c));rows()});
+const S=[["StockAnalysis — إحصاءات الأسهم الثمانية","https://stockanalysis.com/stocks/vrax/statistics/"],["Cerbat Gem — مكشوف BAOS في 15 سبتمبر","https://www.thecerbatgem.com/2026/09/24/baosheng-media-group-holdings-limited-nasdaqbaos-stock-short-interest-climbs-776-5.html"],["Cerbat Gem — مكشوف LCFY في 15 سبتمبر","https://www.thecerbatgem.com/2026/09/25/locafy-limited-nasdaqlcfy-short-interest-update.html"],["StockTitan — تجميع BAOS 40:1","https://www.stocktitan.net/sec-filings/BAOS/6-k-baosheng-media-group-holdings-ltd-current-report-foreign-issuer-f7f182106938.html"],["GlobeNewswire — إشعار ناسداك لـ BAOS","https://www.globenewswire.com/news-release/2026/09/15/3362657/0/en/baosheng-media-group-holdings-limited-receives-nasdaq-notice-regarding-minimum-bid-price-deficiency.html"],["StockTitan — تمويل TRIB واستعادة الامتثال","https://www.stocktitan.net/news/TRIB/trinity-biotech-secures-additional-7-0-million-investment-from-d7p7k1plaqa1.html"],["Nasdaq — تنبيه تجميع TRIB","https://www.nasdaqtrader.com/TraderNews.aspx?id=ECA2026-516"],["Minichart — تفويض تجميع SBFM","https://www.minichart.com.sg/2026/09/16/sunshine-biopharma-authorizes-reverse-stock-split-of-up-to-1-for-20/"],["StockTitan — صفقة وحدات SBFM","https://www.stocktitan.net/sec-filings/SBFM/8-k-sunshine-biopharma-inc-reports-material-event-06113a999620.html"],["Acurx — نتائج الربع الثاني 2026","https://ir.acurxpharma.com/press-releases/detail/141/acurx-pharmaceuticals-inc-reports-second-quarter-2026"],["StockTitan — تسجيل ضمانات ACXP","https://www.stocktitan.net/sec-filings/ACXP/424b3-acurx-pharmaceuticals-inc-prospectus-filed-pursuant-to-rule-424-740097e36491.html"],["StockTitan — وكالة GXAI","https://www.stocktitan.net/sec-filings/GXAI/def-14a-gaxos-ai-inc-definitive-proxy-statement-872bcb2f453c.html"],["StockTitan — تسجيل ضمانات VRAX","https://www.stocktitan.net/sec-filings/VRAX/f-3-virax-biolabs-group-ltd-foreign-issuer-shelf-registration-c4c25c04b0df.html"],["StockTitan — رف وبرنامج بيع LCFY","https://www.stocktitan.net/sec-filings/LCFY/f-3-locafy-ltd-foreign-issuer-shelf-registration-586ae1a7ebef.html"],["GlobeNewswire — إشعار ناسداك لـ HUDI","https://www.globenewswire.com/news-release/2026/07/17/3329102/0/en/Huadi-International-Group-Co-Ltd-Announces-Receipt-of-Nasdaq-Notification-Regarding-Minimum-Bid-Price-Deficiency.html"]];
+$("#src").innerHTML=S.map(([l,u])=>`<li><a href="${u}" target="_blank" rel="noopener">${l}</a></li>`).join("");
+bars();head();rows();
+</script>
+</body></html>
